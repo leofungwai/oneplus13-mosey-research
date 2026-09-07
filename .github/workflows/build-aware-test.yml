@@ -1,0 +1,50 @@
+name: Build OP13 Aware Test APK
+
+on:
+  push:
+    branches:
+      - aware-test-build
+    paths:
+      - 'aware-test/**'
+      - '.github/workflows/build-aware-test.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Ensure Android SDK 35
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Build debug APK
+        run: gradle -p aware-test --no-daemon assembleDebug
+
+      - name: Prepare artifact
+        run: |
+          cp aware-test/app/build/outputs/apk/debug/app-debug.apk OP13-Aware-Test-v1.apk
+          sha256sum OP13-Aware-Test-v1.apk | tee OP13-Aware-Test-v1.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OP13-Aware-Test-v1
+          path: |
+            OP13-Aware-Test-v1.apk
+            OP13-Aware-Test-v1.sha256
+          if-no-files-found: error
